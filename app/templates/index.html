@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f6f1">
+    <title>Bookmark Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f4f6f1;
+        --ink: #17251f;
+        --muted: #69776f;
+        --line: #dce3dc;
+        --green: #245b48;
+        --green-soft: #e5eee8;
+        --red: #a6322b;
+        --red-soft: #fff0ed;
+        --yellow: #f2c86b;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-width: 320px;
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(36, 91, 72, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(36, 91, 72, .025) 1px, transparent 1px);
+        background-size: 28px 28px;
+        color: var(--ink);
+        font-family: "DM Sans", "Trebuchet MS", sans-serif;
+      }
+
+      button, input, textarea { font: inherit; }
+      button { cursor: pointer; }
+      .mono { font-family: "DM Mono", Consolas, monospace; }
+      .tag-scroll { scrollbar-width: thin; scrollbar-color: #b9c8bc transparent; }
+      .modal-backdrop { background: rgba(16, 31, 24, .48); backdrop-filter: blur(3px); }
+      .surface-shadow { box-shadow: 0 14px 40px rgba(25, 51, 38, .08); }
+      .notice-enter { animation: notice-in .18s ease-out both; }
+      @keyframes notice-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="min-h-screen">
+      <header class="border-b border-[#dce3dc] bg-[#fbfcf9]/90">
+        <div class="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <a href="/" class="flex items-center gap-3 text-inherit no-underline" aria-label="Bookmark Library home">
+            <span class="grid h-9 w-9 place-items-center rounded-[6px] bg-[#245b48] text-sm font-bold text-white">B</span>
+            <span>
+              <span class="block text-sm font-bold tracking-[0.04em]">BOOKMARK LIBRARY</span>
+              <span class="mono block text-[10px] uppercase tracking-[0.12em] text-[#69776f]">Personal collection</span>
+            </span>
+          </a>
+          <div class="flex items-center gap-3">
+            <span id="header-count" class="mono hidden text-xs text-[#69776f] sm:block">0 saved</span>
+            <button id="add-button" type="button" class="inline-flex min-h-10 items-center gap-2 rounded-[5px] bg-[#245b48] px-4 text-sm font-semibold text-white transition hover:bg-[#1b4838] focus:outline-none focus:ring-2 focus:ring-[#245b48] focus:ring-offset-2">
+              <span aria-hidden="true" class="text-lg leading-none">+</span> Add bookmark
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto grid max-w-[1440px] gap-7 px-5 py-7 sm:px-8 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-10 lg:py-10">
+        <aside class="min-w-0 lg:pt-1">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="mono text-[11px] font-medium uppercase tracking-[0.14em] text-[#69776f]">Your library</h2>
+            <span id="tag-count" class="mono text-[10px] text-[#69776f]">0 tags</span>
+          </div>
+          <nav id="tag-filters" class="tag-scroll flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-1 lg:overflow-visible" aria-label="Filter bookmarks by tag">
+            <button type="button" data-tag="" aria-pressed="true" class="tag-filter flex shrink-0 items-center justify-between gap-3 rounded-[5px] bg-[#e5eee8] px-3 py-2 text-sm font-semibold text-[#245b48] lg:w-full">
+              <span>All bookmarks</span><span id="all-count" class="mono text-[11px]">0</span>
+            </button>
+            <div id="tag-options" class="contents"></div>
+          </nav>
+          <div class="mt-5 hidden border-t border-[#dce3dc] pt-4 lg:block">
+            <p class="mono text-[10px] uppercase tracking-[0.12em] text-[#69776f]">Collection</p>
+            <p class="mt-2 text-xs leading-5 text-[#69776f]">Stored locally and ready when you return.</p>
+          </div>
+        </aside>
+
+        <section class="min-w-0" aria-labelledby="page-title">
+          <div class="mb-7 flex flex-col justify-between gap-4 border-b border-[#dce3dc] pb-6 sm:flex-row sm:items-end">
+            <div>
+              <p class="mono mb-2 text-[11px] uppercase tracking-[0.14em] text-[#69776f]">Research, kept close</p>
+              <h1 id="page-title" class="text-[28px] font-semibold leading-tight sm:text-[34px]">Your bookmarks</h1>
+              <p id="result-summary" class="mt-2 text-sm text-[#69776f]">A clear view of what you have saved.</p>
+            </div>
+            <label class="relative block w-full sm:max-w-[360px]">
+              <span class="sr-only">Search bookmark titles and URLs</span>
+              <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[#69776f]" aria-hidden="true">⌕</span>
+              <input id="search-input" type="search" autocomplete="off" placeholder="Search titles and URLs" class="h-11 w-full rounded-[5px] border border-[#cbd6cd] bg-white/90 pl-9 pr-3 text-sm outline-none transition placeholder:text-[#87938b] focus:border-[#245b48] focus:ring-2 focus:ring-[#245b48]/15">
+            </label>
+          </div>
+
+          <div id="notice" class="mb-5 hidden rounded-[5px] border px-4 py-3 text-sm" role="alert" aria-live="assertive"></div>
+
+          <div class="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-1">
+            <p id="list-label" class="mono truncate text-[11px] uppercase tracking-[0.13em] text-[#69776f]">Recent saves</p>
+            <button id="clear-filter" type="button" class="hidden text-xs font-semibold text-[#245b48] underline decoration-[#9bb5a4] underline-offset-4">Clear filters</button>
+          </div>
+
+          <div id="loading-state" class="rounded-[6px] border border-[#dce3dc] bg-white/80 px-5 py-12 text-center text-sm text-[#69776f]">Loading bookmarks...</div>
+          <div id="bookmark-list" class="space-y-2" aria-live="polite"></div>
+          <div id="empty-state" class="hidden rounded-[6px] border border-dashed border-[#bdcbbf] bg-white/70 px-5 py-14 text-center">
+            <span class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#e5eee8] text-xl text-[#245b48]" aria-hidden="true">B</span>
+            <h2 id="empty-title" class="mt-4 text-lg font-semibold">Nothing saved yet</h2>
+            <p id="empty-copy" class="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#69776f]">Add a bookmark to start building your library.</p>
+            <button id="empty-add" type="button" class="mt-5 rounded-[5px] border border-[#245b48] px-4 py-2 text-sm font-semibold text-[#245b48] transition hover:bg-[#e5eee8]">Add your first bookmark</button>
+          </div>
+          <div id="load-error" class="hidden rounded-[6px] border border-[#e4b8b2] bg-[#fff0ed] px-5 py-8 text-center text-sm text-[#842b25]" role="alert">
+            <p class="font-semibold">Bookmarks could not be loaded.</p>
+            <button id="retry-button" type="button" class="mt-3 rounded-[5px] border border-[#a6322b] px-3 py-2 font-semibold hover:bg-white">Try again</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="editor-modal" class="modal-backdrop fixed inset-0 z-20 hidden items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+      <div class="surface-shadow my-auto w-full max-w-[520px] rounded-[7px] border border-[#dce3dc] bg-[#fbfcf9] p-5 sm:p-7">
+        <div class="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p class="mono text-[10px] uppercase tracking-[0.14em] text-[#69776f]">Bookmark details</p>
+            <h2 id="editor-title" class="mt-1 text-xl font-semibold">Add bookmark</h2>
+          </div>
+          <button id="close-editor" type="button" class="rounded-[4px] px-2 py-1 text-2xl leading-none text-[#69776f] hover:bg-[#e9eee8]" aria-label="Close editor">&times;</button>
+        </div>
+        <form id="bookmark-form" class="space-y-4">
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-semibold">URL <span class="text-[#a6322b]">*</span></span>
+            <input id="bookmark-url" name="url" type="url" required placeholder="https://example.org/article" class="h-11 w-full rounded-[5px] border border-[#cbd6cd] bg-white px-3 text-sm outline-none focus:border-[#245b48] focus:ring-2 focus:ring-[#245b48]/15">
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-semibold">Title <span class="font-normal text-[#69776f]">optional</span></span>
+            <input id="bookmark-title" name="title" type="text" placeholder="Leave blank to retrieve the page title" class="h-11 w-full rounded-[5px] border border-[#cbd6cd] bg-white px-3 text-sm outline-none focus:border-[#245b48] focus:ring-2 focus:ring-[#245b48]/15">
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-sm font-semibold">Tags <span class="font-normal text-[#69776f]">optional</span></span>
+            <input id="bookmark-tags" name="tags" type="text" placeholder="research, design, reading" class="h-11 w-full rounded-[5px] border border-[#cbd6cd] bg-white px-3 text-sm outline-none focus:border-[#245b48] focus:ring-2 focus:ring-[#245b48]/15">
+          </label>
+          <p id="form-error" class="hidden rounded-[5px] bg-[#fff0ed] px-3 py-2 text-sm text-[#a6322b]" role="alert"></p>
+          <div class="flex justify-end gap-2 border-t border-[#dce3dc] pt-4">
+            <button id="cancel-editor" type="button" class="min-h-10 rounded-[5px] px-4 text-sm font-semibold text-[#526158] hover:bg-[#edf1ec]">Cancel</button>
+            <button id="save-button" type="submit" class="min-h-10 rounded-[5px] bg-[#245b48] px-5 text-sm font-semibold text-white hover:bg-[#1b4838]">Save bookmark</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="delete-modal" class="modal-backdrop fixed inset-0 z-30 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+      <div class="surface-shadow w-full max-w-[420px] rounded-[7px] border border-[#e1c2bd] bg-[#fffdfb] p-6">
+        <p class="mono text-[10px] uppercase tracking-[0.14em] text-[#a6322b]">Please confirm</p>
+        <h2 id="delete-title" class="mt-2 text-xl font-semibold">Delete this bookmark?</h2>
+        <p id="delete-description" class="mt-2 break-words text-sm leading-6 text-[#69776f]"></p>
+        <p id="delete-error" class="mt-3 hidden rounded-[5px] bg-[#fff0ed] px-3 py-2 text-sm text-[#a6322b]" role="alert"></p>
+        <div class="mt-6 flex justify-end gap-2">
+          <button id="cancel-delete" type="button" class="min-h-10 rounded-[5px] px-4 text-sm font-semibold text-[#526158] hover:bg-[#edf1ec]">Keep bookmark</button>
+          <button id="confirm-delete" type="button" class="min-h-10 rounded-[5px] bg-[#a6322b] px-4 text-sm font-semibold text-white hover:bg-[#862720]">Delete bookmark</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const api = "/api/bookmarks";
+      const state = { bookmarks: [], tags: [], totalCount: 0, selectedTag: "", search: "", editingId: null, deleting: null, loading: false };
+      const byId = (id) => document.getElementById(id);
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[character]);
+      }
+
+      function safeLink(value) {
+        try {
+          const parsed = new URL(value, window.location.origin);
+          return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+        } catch {
+          return "";
+        }
+      }
+
+      function showNotice(message, kind = "error") {
+        const notice = byId("notice");
+        notice.className = "notice-enter fixed left-1/2 top-4 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 rounded-[5px] border px-4 py-3 text-sm shadow-lg";
+        if (kind === "duplicate") {
+          notice.classList.add("border-[#c94035]", "bg-[#a6322b]", "font-semibold", "text-white");
+        } else {
+          notice.classList.add("border-[#e4b8b2]", "bg-[#fff0ed]", "text-[#842b25]");
+        }
+        notice.textContent = message;
+        notice.classList.remove("hidden");
+        window.clearTimeout(showNotice.timer);
+        showNotice.timer = window.setTimeout(() => notice.classList.add("hidden"), 6000);
+      }
+
+      function hideNotice() {
+        byId("notice").classList.add("hidden");
+      }
+
+      async function requestJson(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+        });
+        let data = null;
+        try { data = await response.json(); } catch { /* A response may have no JSON body. */ }
+        if (!response.ok) {
+          const message = typeof data?.detail === "string" ? data.detail : "The request could not be completed.";
+          const duplicate = /already exists|unique value|duplicate/i.test(message);
+          const error = new Error(message);
+          error.duplicate = duplicate;
+          error.status = response.status;
+          throw error;
+        }
+        return data;
+      }
+
+      function collectTags(bookmarks, { reset = false } = {}) {
+        const names = new Set(reset ? [] : state.tags);
+        for (const bookmark of bookmarks) {
+          for (const tag of bookmark.tags || []) names.add(tag);
+        }
+        state.tags = [...names].sort((a, b) => a.localeCompare(b));
+      }
+
+      async function refreshTags() {
+        const bookmarks = await requestJson(api);
+        state.totalCount = bookmarks.length;
+        // Rebuild from the full unfiltered collection so tags with no
+        // remaining bookmarks (e.g. after a delete) are dropped, not merged.
+        collectTags(bookmarks, { reset: true });
+        renderTags();
+      }
+
+      let requestSeq = 0;
+
+      async function loadBookmarks({ refreshTagList = false } = {}) {
+        const requestId = ++requestSeq;
+        state.loading = true;
+        byId("loading-state").classList.remove("hidden");
+        byId("load-error").classList.add("hidden");
+        byId("empty-state").classList.add("hidden");
+        byId("bookmark-list").replaceChildren();
+        hideNotice();
+
+        try {
+          if (refreshTagList) await refreshTags();
+          const params = new URLSearchParams();
+          if (state.search) params.set("search", state.search);
+          if (state.selectedTag) params.set("tag", state.selectedTag);
+          const suffix = params.size ? `?${params.toString()}` : "";
+          const bookmarks = await requestJson(`${api}${suffix}`);
+          // A newer request may have started and resolved while this one
+          // was in flight; discard this now-stale response.
+          if (requestId !== requestSeq) return;
+          state.bookmarks = bookmarks;
+          collectTags(state.bookmarks);
+          renderTags();
+          renderBookmarks();
+        } catch (error) {
+          if (requestId !== requestSeq) return;
+          byId("load-error").classList.remove("hidden");
+          showNotice(error.message);
+        } finally {
+          if (requestId === requestSeq) {
+            state.loading = false;
+            byId("loading-state").classList.add("hidden");
+          }
+        }
+      }
+
+      function renderTags(totalCount) {
+        const options = byId("tag-options");
+        options.innerHTML = state.tags.map((tag) => `
+          <button type="button" data-tag="${escapeHtml(tag)}" aria-pressed="${state.selectedTag === tag}" class="tag-filter flex shrink-0 items-center rounded-[5px] px-3 py-2 text-sm text-[#526158] transition hover:bg-[#e9eee8] aria-pressed:bg-[#e5eee8] aria-pressed:font-semibold aria-pressed:text-[#245b48] lg:w-full lg:justify-between">
+            <span class="max-w-[150px] truncate">${escapeHtml(tag)}</span>
+          </button>`).join("");
+        byId("tag-count").textContent = `${state.tags.length} ${state.tags.length === 1 ? "tag" : "tags"}`;
+        if (typeof totalCount === "number") byId("all-count").textContent = String(totalCount);
+        for (const button of document.querySelectorAll(".tag-filter")) {
+          button.classList.toggle("bg-[#e5eee8]", button.dataset.tag === state.selectedTag);
+          button.classList.toggle("font-semibold", button.dataset.tag === state.selectedTag);
+          button.classList.toggle("text-[#245b48]", button.dataset.tag === state.selectedTag);
+          button.setAttribute("aria-pressed", String(button.dataset.tag === state.selectedTag));
+        }
+      }
+
+      function renderBookmarks() {
+        const list = byId("bookmark-list");
+        const active = state.search || state.selectedTag;
+        byId("header-count").textContent = `${state.bookmarks.length} ${state.bookmarks.length === 1 ? "saved" : "saved"}`;
+        byId("all-count").textContent = String(state.totalCount);
+        byId("result-summary").textContent = active
+          ? `${state.bookmarks.length} ${state.bookmarks.length === 1 ? "match" : "matches"}${state.selectedTag ? ` for ${state.selectedTag}` : ""}`
+          : "A clear view of what you have saved.";
+        byId("list-label").textContent = state.selectedTag ? `Tagged ${state.selectedTag}` : state.search ? "Search results" : "Recent saves";
+        byId("clear-filter").classList.toggle("hidden", !active);
+        list.innerHTML = state.bookmarks.map((bookmark) => {
+          const title = bookmark.title || bookmark.url;
+          const link = safeLink(bookmark.url);
+          const savedDate = bookmark.created_at ? new Date(bookmark.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+          const tags = (bookmark.tags || []).map((tag) => `<button type="button" data-tag="${escapeHtml(tag)}" class="rounded-[3px] bg-[#e5eee8] px-2 py-1 text-[11px] font-medium text-[#245b48] hover:bg-[#d5e4d9]">${escapeHtml(tag)}</button>`).join("");
+          const destination = link
+            ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="break-all text-xs text-[#69776f] underline decoration-[#bdcbbf] underline-offset-2 hover:text-[#245b48]">${escapeHtml(bookmark.url)}</a>`
+            : `<span class="break-all text-xs text-[#69776f]">${escapeHtml(bookmark.url)}</span>`;
+          return `
+            <article class="group grid gap-4 rounded-[6px] border border-[#dce3dc] bg-white/90 p-4 transition hover:border-[#b7c8ba] hover:bg-white sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+              <div class="min-w-0">
+                <div class="flex min-w-0 items-start gap-3">
+                  <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[4px] bg-[#f0f3ee] text-xs font-bold text-[#245b48]" aria-hidden="true">${escapeHtml((new URL(bookmark.url)).hostname.slice(0, 1).toUpperCase())}</span>
+                  <div class="min-w-0 flex-1">
+                    <h2 class="break-words text-[15px] font-semibold leading-5">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" class="hover:text-[#245b48]">${escapeHtml(title)}</a>` : escapeHtml(title)}</h2>
+                    <div class="mt-1">${destination}</div>
+                    <div class="mt-3 flex flex-wrap items-center gap-1.5">${tags}<span class="mono ml-1 text-[10px] text-[#87938b]">${escapeHtml(savedDate)}</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center justify-end gap-1 border-t border-[#edf0eb] pt-3 sm:border-0 sm:pt-0">
+                <button type="button" data-edit="${bookmark.id}" class="rounded-[4px] px-3 py-2 text-xs font-semibold text-[#526158] hover:bg-[#edf1ec] hover:text-[#17251f]">Edit</button>
+                <button type="button" data-delete="${bookmark.id}" class="rounded-[4px] px-3 py-2 text-xs font-semibold text-[#a6322b] hover:bg-[#fff0ed]">Delete</button>
+              </div>
+            </article>`;
+        }).join("");
+
+        const empty = state.bookmarks.length === 0;
+        byId("empty-state").classList.toggle("hidden", !empty);
+        if (empty) {
+          const searching = Boolean(state.search || state.selectedTag);
+          byId("empty-title").textContent = searching ? "No matching bookmarks" : "Nothing saved yet";
+          byId("empty-copy").textContent = searching ? "Try a different search or clear the active filters." : "Add a bookmark to start building your library.";
+          byId("empty-add").classList.toggle("hidden", searching);
+        }
+      }
+
+      function openEditor(bookmark = null) {
+        state.editingId = bookmark?.id ?? null;
+        byId("editor-title").textContent = bookmark ? "Edit bookmark" : "Add bookmark";
+        byId("save-button").textContent = bookmark ? "Save changes" : "Save bookmark";
+        byId("bookmark-url").value = bookmark?.url || "";
+        byId("bookmark-title").value = bookmark?.title || "";
+        byId("bookmark-tags").value = (bookmark?.tags || []).join(", ");
+        byId("form-error").classList.add("hidden");
+        byId("editor-modal").classList.remove("hidden");
+        byId("editor-modal").classList.add("flex");
+        window.setTimeout(() => byId("bookmark-url").focus(), 0);
+      }
+
+      function closeEditor() {
+        byId("editor-modal").classList.add("hidden");
+        byId("editor-modal").classList.remove("flex");
+        byId("bookmark-form").reset();
+        state.editingId = null;
+      }
+
+      function showFormError(message) {
+        const error = byId("form-error");
+        error.textContent = message;
+        error.classList.remove("hidden");
+      }
+
+      byId("add-button").addEventListener("click", () => openEditor());
+      byId("empty-add").addEventListener("click", () => openEditor());
+      byId("close-editor").addEventListener("click", closeEditor);
+      byId("cancel-editor").addEventListener("click", closeEditor);
+      byId("retry-button").addEventListener("click", () => loadBookmarks({ refreshTagList: true }));
+      byId("clear-filter").addEventListener("click", () => {
+        state.search = "";
+        state.selectedTag = "";
+        byId("search-input").value = "";
+        renderTags();
+        loadBookmarks();
+      });
+
+      let searchTimer;
+      byId("search-input").addEventListener("input", (event) => {
+        state.search = event.target.value.trim();
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(() => loadBookmarks(), 180);
+      });
+
+      byId("tag-filters").addEventListener("click", (event) => {
+        const filter = event.target.closest("button[data-tag]");
+        if (!filter) return;
+        state.selectedTag = filter.dataset.tag;
+        renderTags();
+        loadBookmarks();
+      });
+
+      byId("bookmark-list").addEventListener("click", (event) => {
+        const editButton = event.target.closest("button[data-edit]");
+        if (editButton) {
+          const bookmark = state.bookmarks.find((item) => item.id === Number(editButton.dataset.edit));
+          if (bookmark) openEditor(bookmark);
+          return;
+        }
+        const deleteButton = event.target.closest("button[data-delete]");
+        if (deleteButton) {
+          state.deleting = state.bookmarks.find((item) => item.id === Number(deleteButton.dataset.delete)) || null;
+          if (!state.deleting) return;
+          byId("delete-description").textContent = state.deleting.title || state.deleting.url;
+          byId("delete-error").textContent = "";
+          byId("delete-error").classList.add("hidden");
+          byId("delete-modal").classList.remove("hidden");
+          byId("delete-modal").classList.add("flex");
+          byId("cancel-delete").focus();
+          return;
+        }
+        const tagButton = event.target.closest("button[data-tag]");
+        if (tagButton) {
+          state.selectedTag = tagButton.dataset.tag;
+          renderTags();
+          loadBookmarks();
+        }
+      });
+
+      byId("bookmark-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const url = byId("bookmark-url").value.trim();
+        const title = byId("bookmark-title").value.trim();
+        const tags = [...new Set(byId("bookmark-tags").value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+        const body = { url, title: title || null, tags };
+        const editing = state.editingId !== null;
+        const saveButton = byId("save-button");
+        saveButton.disabled = true;
+        saveButton.textContent = editing ? "Saving..." : "Adding...";
+
+        try {
+          await requestJson(editing ? `${api}/${state.editingId}` : api, {
+            method: editing ? "PUT" : "POST",
+            body: JSON.stringify(body)
+          });
+          closeEditor();
+          await loadBookmarks({ refreshTagList: true });
+          if (!editing && !title) window.setTimeout(() => loadBookmarks(), 3300);
+        } catch (error) {
+          showFormError(error.message);
+          if (error.duplicate) showNotice(error.message, "duplicate");
+        } finally {
+          saveButton.disabled = false;
+          saveButton.textContent = state.editingId === null ? "Save bookmark" : "Save changes";
+        }
+      });
+
+      byId("cancel-delete").addEventListener("click", () => {
+        byId("delete-modal").classList.add("hidden");
+        byId("delete-modal").classList.remove("flex");
+        byId("delete-error").classList.add("hidden");
+        state.deleting = null;
+      });
+
+      byId("confirm-delete").addEventListener("click", async () => {
+        if (!state.deleting) return;
+        const button = byId("confirm-delete");
+        button.disabled = true;
+        try {
+          await requestJson(`${api}/${state.deleting.id}`, { method: "DELETE" });
+          byId("delete-modal").classList.add("hidden");
+          byId("delete-modal").classList.remove("flex");
+          state.deleting = null;
+          await loadBookmarks({ refreshTagList: true });
+        } catch (error) {
+          byId("delete-error").textContent = error.message;
+          byId("delete-error").classList.remove("hidden");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeEditor();
+          byId("cancel-delete").click();
+        }
+      });
+
+      loadBookmarks({ refreshTagList: true });
+    </script>
+  </body>
+</html>
